@@ -1,27 +1,51 @@
 // server.js
 const express = require("express");
 const path = require("path");
+const fetch = require("node-fetch"); // for API calls
+require("dotenv").config(); // load .env
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 // Serve static files (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname)));
 
-// Middleware to parse JSON bodies (for future API requests)
+// Middleware to parse JSON bodies
 app.use(express.json());
 
-// Optional endpoint for AI response (currently returns mock)
-app.post("/api/ai", (req, res) => {
+// AI endpoint
+app.post("/api/ai", async (req, res) => {
   const { message } = req.body;
 
-  // Mock AI response
-  const mockResponse = `Theo: Sorry, I couldn’t reach the AI right now. (mock)`;
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "Theo is a friendly health companion." },
+          { role: "user", content: message }
+        ]
+      })
+    });
 
-  res.json({ response: mockResponse });
+    const data = await response.json();
+    const aiReply = data.choices[0].message.content;
+
+    res.json({ response: aiReply });
+
+  } catch (error) {
+    console.error(error);
+    res.json({ response: "Theo: Sorry, I couldn’t reach the AI right now." });
+  }
 });
 
-// Serve index.html for root path
+// Serve index.html for root
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
